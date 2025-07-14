@@ -1,11 +1,11 @@
 # 欧奥DAM Docker 部署
 
-### 1.实现数据持久化——创建数据目录并在启动时挂载
+### 实现数据持久化——创建数据目录并在启动时挂载
 ```
 mkdir /data
 docker run -d -p 80:80 --restart=always -v /data:/var/www/html oaooa/dam 
 ```
-### 2.以https方式启动
+### 以https方式启动
  
 -  使用已有ssl证书
     - 证书格式必须是 fullchain.pem  privkey.key
@@ -13,7 +13,7 @@ docker run -d -p 80:80 --restart=always -v /data:/var/www/html oaooa/dam
         docker run -d -p 443:443 --restart=always  -v "你的证书目录":/etc/nginx/ssl --name pichome oaooa/dam
         ```
 
-### 3.使用docker-compose同时部署数据库（推荐）
+### 使用docker-compose同时部署数据库（推荐）
 ```
 git clone https://github.com/zyx0814/Dam-docker.git
 cd ./Dam-docker/compose/
