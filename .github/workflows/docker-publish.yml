@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: oaooa/dam
+  IMAGE_NAME: oaooa/dam_arm64
   
 jobs:
   buildx:
@@ -35,7 +35,7 @@ jobs:
         name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: .dockerfile_arm
           push: ${{ github.event_name != 'pull_request' }}
           platforms: |
             linux/386
