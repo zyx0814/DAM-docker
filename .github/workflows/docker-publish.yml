@@ -36,7 +36,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile_arm
+          dockerfile: Dockerfile_arm
           push: ${{ github.event_name != 'pull_request' }}
           platforms: |
             linux/arm/v6
