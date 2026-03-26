@@ -1,42 +1,31 @@
 FROM kylinv10/kylin:b09
 
-# ==============================================
-# 【修复】麒麟V10专用：禁用不兼容源，使用官方源
-# ==============================================
-RUN echo "fastestmirror=1" >> /etc/yum/pluginconf.d/fastestmirror.conf && \
-    yum install -y wget yum-utils && \
-    yum clean all && yum makecache
+# ==============================
+# 【修复1】跳过不存在的文件 + 极简依赖
+# ==============================
+RUN yum install -y wget && \
+    yum clean all && \
+    yum makecache
 
-# ==============================================
-# 【关键修复】卸载/屏蔽 CentOS7 不兼容源（EPEL/Remi）
-# ==============================================
-RUN rpm -e --nodeps epel-release 2>/dev/null || true && \
+# ==============================
+# 【修复2】彻底屏蔽所有第三方源冲突
+# ==============================
+RUN rpm -e --nodeps epel-release remi-release 2>/dev/null || true && \
     rm -rf /etc/yum.repos.d/epel*.repo /etc/yum.repos.d/remi*.repo
 
-# ==============================================
-# 【麒麟原生】安装系统依赖（ARM/龙芯全兼容）
-# ==============================================
+# ==============================
+# 【修复3】麒麟官方源安装全套依赖（无兼容问题）
+# ==============================
 RUN yum -y install \
     rsync supervisor ghostscript ffmpeg ffmpeg-devel memcached nginx unzip sqlite \
-    libpng libjpeg-turbo gd-devel \
-    OpenEXR-libs gdk-pixbuf2 ilmbase \
-    libwmf libwmf-lite glib2 lcms2 lcms2-devel \
-    gtk2 gtk2-devel gimp gimp-devel \
-    libtiff libtiff-devel cfitsio cfitsio-devel \
-    exiv2 exiv2-devel gtkimageview gtkimageview-devel \
-    djvulibre djvulibre-devel fftw3 fftw3-devel \
-    openexr openexr-devel libzstd libzstd-devel \
-    transfig transfig-devel jbigkit jbigkit-devel \
-    perl-Archive-Zip libwebp libwebp-devel libwebp-tools \
-    freetype freetype-devel libraw libraw-devel \
-    ImageMagick ImageMagick-devel
+    libpng libjpeg-turbo gd-devel libwebp libwebp-devel \
+    libtiff libtiff-devel freetype freetype-devel \
+    ImageMagick ImageMagick-devel perl-Archive-Zip \
+    ghostscript-fonts urw-fonts xorg-x11-font-utils
 
-# 字体
-RUN yum -y install ghostscript-fonts urw-fonts xorg-x11-font-utils
-
-# ==============================================
-# 【麒麟官方源】原生安装 PHP7.4（无兼容问题）
-# ==============================================
+# ==============================
+# 【修复4】麒麟原生 PHP7.4（直接安装）
+# ==============================
 RUN yum -y install \
     php-fpm \
     php-cli \
@@ -54,17 +43,23 @@ RUN yum -y install \
 
 RUN yum clean all
 
-# Nginx 日志
+# ==============================
+# Nginx 日志与目录
+# ==============================
 RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
     ln -sf /dev/stderr /var/log/nginx/error.log && \
     mkdir -p /run/nginx /var/log/supervisor
 
+# ==============================
 # 时区
+# ==============================
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo "Asia/Shanghai" > /etc/timezone
 
+# ==============================
+# 配置文件
+# ==============================
 ADD conf/supervisord.conf /etc/supervisord.conf
-
 RUN rm -rf /etc/nginx/nginx.conf
 ADD conf/nginx.conf /etc/nginx/nginx.conf
 
@@ -76,9 +71,9 @@ ADD conf/nginx-site-ssl.conf /etc/nginx/sites-available/default-ssl.conf
 ADD conf/private-ssl.conf /etc/nginx/sites-available/private-ssl.conf
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/default.conf
 
-# ==============================================
-# PHP 配置（适配麒麟原生 PHP，路径修正）
-# ==============================================
+# ==============================
+# PHP 配置（麒麟原生路径）
+# ==============================
 RUN sed -i 's/disable_functions = .*/disable_functions = passthru,system,chroot,chgrp,chown,shell_exec,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /etc/php.ini && \
     sed -i 's/user = apache/user = nginx/g' /etc/php-fpm.d/www.conf && \
     sed -i 's/group = apache/group = nginx/g' /etc/php-fpm.d/www.conf && \
@@ -106,4 +101,4 @@ COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/usr/bin/supervisord","-n","-c",""/etc/supervisord.conf"]
+CMD ["/usr/bin/supervisord","-n","-c","/etc/supervisord.conf"]
