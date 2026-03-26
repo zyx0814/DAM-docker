@@ -1,17 +1,21 @@
 FROM centos:7.9.2009
 
-# 配置yum源
+# 配置yum源 —— 【必须改：阿里云源替换为 ARM 兼容源】
 RUN rm -rf /etc/yum.repos.d/* && \
-    curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-7.repo && \
-    curl -o /etc/yum.repos.d/epel.repo https://mirrors.aliyun.com/repo/epel-7.repo && \
+    # 替换为 centos-arm64 源
+    curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-altarch-7.repo && \
+    # epel 替换为 arm64 源
+    curl -o /etc/yum.repos.d/epel.repo https://mirrors.aliyun.com/repo/epel-7-arm64.repo && \
     yum clean all && yum makecache
 
 # 安装基础工具和依赖
 # 安装EPEL和REMI仓库
 RUN yum -y install epel-release && \
+    # REMI 源 无需修改
     yum -y install https://rpms.remirepo.net/enterprise/remi-release-7.rpm && \
     yum-config-manager --enable remi-php74 && \
-    rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm
+    # 【必须删：这是 x86_64 专属仓库，ARM 没有】
+    # rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm
 
 # 安装基础工具
 RUN yum -y install \
@@ -50,7 +54,8 @@ RUN yum -y install \
     exiv2-devel \
     gtkimageview \
     gtkimageview-devel \
-    ufraw \
+    # 【必须删：ufraw ARM 无包】
+    # ufraw \
     djvulibre \
     djvulibre-devel \
     fftw3 \
@@ -71,8 +76,9 @@ RUN yum -y install \
     freetype-devel \
     libraw \
     libraw-devel \
-    libpsd \
-    libpsd-devel \
+    # 【必须删：libpsd ARM 无包】
+    # libpsd \
+    # libpsd-devel \
     ImageMagick \
     ImageMagick-devel
 
@@ -131,7 +137,7 @@ ADD conf/nginx-site.conf /etc/nginx/sites-available/default.conf
 ADD conf/nginx-site-ssl.conf /etc/nginx/sites-available/default-ssl.conf
 ADD conf/private-ssl.conf /etc/nginx/sites-available/private-ssl.conf
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/default.conf
-  
+
 # 配置PHP
 RUN ln -s /usr/bin/php74 /usr/bin/php && \
     ln -s /opt/remi/php74/root/sbin/php-fpm /usr/sbin/php-fpm && \
@@ -163,7 +169,7 @@ RUN echo "cgi.fix_pathinfo=1" > /etc/opt/remi/php74/php.d/custom.ini && \
 VOLUME /var/www/html
 
 COPY entrypoint.sh /
+RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
-RUN chmod +x /entrypoint.sh
 CMD ["/usr/bin/supervisord","-n","-c","/etc/supervisord.conf"]
