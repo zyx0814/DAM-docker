@@ -35,7 +35,7 @@ jobs:
         name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .dockerfile_arm
+          context: ./Dockerfile_arm
           push: ${{ github.event_name != 'pull_request' }}
           platforms: |
             linux/386
