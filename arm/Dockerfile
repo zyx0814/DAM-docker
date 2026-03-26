@@ -1,31 +1,22 @@
-# 1. 必须用 ARM64 基础镜像
 FROM arm64v8/centos:7
 
-# 2. 先安装 wget + 基础工具（解决无curl问题）
-RUN yum install -y wget && \
-    rm -rf /etc/yum.repos.d/* && \
-    wget -O /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-altarch-7.repo && \
-    wget -O /etc/yum.repos.d/epel.repo https://mirrors.aliyun.com/repo/epel-7-arm64.repo && \
+# ==============================================
+# 【关键修复】不下载外部repo！使用系统自带官方源
+# 这是跨平台构建唯一能成功的方式
+# ==============================================
+RUN echo "fastestmirror=1" >> /etc/yum/pluginconf.d/fastestmirror.conf && \
+    yum install -y wget && \
     yum clean all && yum makecache
 
-# 3. 安装仓库
+# 安装 epel、remi
 RUN yum -y install epel-release && \
     yum -y install https://rpms.remirepo.net/enterprise/remi-release-7.rpm && \
     yum-config-manager --enable remi-php74
 
-# 4. 安装基础工具
+# 安装依赖（已删除 ARM 不兼容包）
 RUN yum -y install \
-    rsync \
-    supervisor \
-    ghostscript \
-    ffmpeg \
-    ffmpeg-devel \
-    memcached \
-    nginx \
-    unzip \
-    sqlite
+    rsync supervisor ghostscript ffmpeg ffmpeg-devel memcached nginx unzip sqlite
 
-# 5. 安装依赖（已删除 ARM 不支持的包）
 RUN yum -y install \
     libpng* libjpeg* gd-devel \
     OpenEXR-libs gdk-pixbuf2 ilmbase \
@@ -40,10 +31,10 @@ RUN yum -y install \
     freetype freetype-devel libraw libraw-devel \
     ImageMagick ImageMagick-devel
 
-# 6. 安装字体
+# 字体
 RUN yum -y install ghostscript-fonts urw-fonts xorg-x11-font-utils
 
-# 7. 安装 PHP 7.4
+# PHP 7.4
 RUN yum -y install \
     php74-php-fpm \
     php74-php-cli \
@@ -59,15 +50,14 @@ RUN yum -y install \
     php74-php-pecl-imagick \
     php74-php-pecl-memcached
 
-# 8. 清理
 RUN yum clean all
 
-# 9. Nginx 配置
+# Nginx 日志
 RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
     ln -sf /dev/stderr /var/log/nginx/error.log && \
     mkdir -p /run/nginx /var/log/supervisor
 
-# 10. 时区
+# 时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo "Asia/Shanghai" > /etc/timezone
 
@@ -84,7 +74,7 @@ ADD conf/nginx-site-ssl.conf /etc/nginx/sites-available/default-ssl.conf
 ADD conf/private-ssl.conf /etc/nginx/sites-available/private-ssl.conf
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/default.conf
 
-# 11. PHP 配置
+# PHP 配置
 RUN ln -s /usr/bin/php74 /usr/bin/php && \
     ln -s /opt/remi/php74/root/sbin/php-fpm /usr/sbin/php-fpm && \
     sed -i 's/disable_functions = .*/disable_functions = passthru,system,chroot,chgrp,chown,shell_exec,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /etc/opt/remi/php74/php.ini && \
