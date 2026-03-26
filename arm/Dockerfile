@@ -17,11 +17,11 @@ RUN rpm -e --nodeps epel-release remi-release 2>/dev/null || true && \
 # 【修复3】麒麟官方源安装全套依赖（无兼容问题）
 # ==============================
 RUN yum -y install \
-    rsync supervisor ghostscript ffmpeg ffmpeg-devel memcached nginx unzip sqlite \
+    supervisor ghostscript ffmpeg ffmpeg-devel memcached nginx unzip \
     libpng libjpeg-turbo gd-devel libwebp libwebp-devel \
     libtiff libtiff-devel freetype freetype-devel \
-    ImageMagick ImageMagick-devel perl-Archive-Zip \
-    ghostscript-fonts urw-fonts xorg-x11-font-utils
+    ImageMagick  \
+    ghostscript-fonts
 
 # ==============================
 # 【修复4】麒麟原生 PHP7.4（直接安装）
