@@ -69,11 +69,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         intl \
         pcntl \
         posix \
-        readline \
-        xml \
         simplexml \
-        xmlreader \
-        xmlwriter \
         xsl \
         zip \
         tidy \
