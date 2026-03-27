@@ -63,34 +63,28 @@ RUN apt-get clean && \
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j$(nproc) \
         dom \
+        gd \
+        curl \
+        mbstring \
+        intl \
+        pcntl \
+        posix \
+        readline \
         xml \
         simplexml \
         xmlreader \
         xmlwriter \
         xsl \
-        mbstring \
-        gd \
         zip \
-        curl \
         tidy \
         mysqli \
-        bcmath \
         opcache \
         pdo_mysql \
-        intl \
         exif \
         sockets \
-        pcntl \
-        gettext \
         bz2 \
-        soap \
-        calendar \
-        shmop \
-        sysvmsg \
-        sysvsem \
-        sysvshm \
-        readline \
-        posix
+        soap
+
 
 # 安装 PECL 扩展: imagick, redis
 RUN pecl install imagick redis \
