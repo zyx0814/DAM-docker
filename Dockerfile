@@ -6,7 +6,9 @@ WORKDIR /var/www/html
 
 # 设置环境变量以避免交互式提示
 ENV DEBIAN_FRONTEND=noninteractive
-
+RUN sed -i 's/main/main contrib non-free/g' /etc/apt/sources.list && \
+    (sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list || true) && \
+    (sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list || true)
 
 # 合并安装步骤以减少层数并提高稳定性
 # 增加重试机制和网络容错，如果安装失败则回退到默认源
