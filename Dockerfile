@@ -4,18 +4,21 @@ FROM php:7.4-fpm-bullseye
 # 设置工作目录
 WORKDIR /var/www/html
 
+# 设置环境变量以避免交互式提示
+ENV DEBIAN_FRONTEND=noninteractive
+
 # 安装系统依赖、Nginx、ImageMagick 和 FFmpeg
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     libpng-dev \
-    libjpeg-dev \
+    libjpeg62-turbo-dev \
     libfreetype6-dev \
     libwebp-dev \
     libonig-dev \
     libzip-dev \
     libcurl4-openssl-dev \
     libtidy-dev \
-    libxslt-dev \
+    libxslt1-dev \
     libmagickwand-dev \
     libicu-dev \
     libbz2-dev \
@@ -29,6 +32,7 @@ RUN apt-get update && apt-get install -y \
     dcraw \
     ghostscript \
     unzip \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # 配置并安装 PHP 扩展
