@@ -1,169 +1,100 @@
-FROM centos:7.9.2009
+# 使用 PHP 7.4-FPM 作为基础镜像 (基于 Debian Bullseye 以获得更好的现代格式支持)
+FROM php:7.4-fpm-bullseye
 
-# 配置yum源
-RUN rm -rf /etc/yum.repos.d/* && \
-    curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-7.repo && \
-    curl -o /etc/yum.repos.d/epel.repo https://mirrors.aliyun.com/repo/epel-7.repo && \
-    yum clean all && yum makecache
+# 设置工作目录
+WORKDIR /var/www/html
 
-# 安装基础工具和依赖
-# 安装EPEL和REMI仓库
-RUN yum -y install epel-release && \
-    yum -y install https://rpms.remirepo.net/enterprise/remi-release-7.rpm && \
-    yum-config-manager --enable remi-php74 && \
-    rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm
-
-# 安装基础工具
-RUN yum -y install \
-    rsync \
-    supervisor \
-    ghostscript \
-    ffmpeg \
-    ffmpeg-devel \
-    memcached \
+# 安装系统依赖、Nginx、ImageMagick 和 FFmpeg
+RUN apt-get update && apt-get install -y \
     nginx \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libwebp-dev \
+    libonig-dev \
+    libzip-dev \
+    libcurl4-openssl-dev \
+    libtidy-dev \
+    libxslt-dev \
+    libmagickwand-dev \
+    libicu-dev \
+    libbz2-dev \
+    libxml2-dev \
+    libreadline-dev \
+    libheif-dev \
+    libmagickcore-6.q16-6-extra \
+    imagemagick \
+    ffmpeg \
+    libraw-bin \
+    dcraw \
+    ghostscript \
     unzip \
-    sqlite
+    && rm -rf /var/lib/apt/lists/*
 
-# 安装图像处理相关包
-RUN yum -y install \
-    libpng* \
-    libjpeg* \
-    gd-devel \
-    OpenEXR-libs \
-    gdk-pixbuf2 \
-    ilmbase \
-    libwmf \
-    libwmf-lite \
-    glib2 \
-    lcms2 \
-    lcms2-devel \
-    gtk2 \
-    gtk2-devel \
-    gimp \
-    gimp-devel \
-    libtiff \
-    libtiff-devel \
-    cfitsio \
-    cfitsio-devel \
-    exiv2 \
-    exiv2-devel \
-    gtkimageview \
-    gtkimageview-devel \
-    ufraw \
-    djvulibre \
-    djvulibre-devel \
-    fftw3 \
-    fftw3-devel \
-    openexr \
-    openexr-devel \
-    libzstd \
-    libzstd-devel \
-    transfig \
-    transfig-devel \
-    jbigkit \
-    jbigkit-devel \
-    perl-Archive-Zip \
-    libwebp \
-    libwebp-devel \
-    libwebp-tools \
-    freetype \
-    freetype-devel \
-    libraw \
-    libraw-devel \
-    libpsd \
-    libpsd-devel \
-    ImageMagick \
-    ImageMagick-devel
+# 配置并安装 PHP 扩展
+# 包括要求的扩展及常用的基础扩展
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) \
+        mbstring \
+        gd \
+        zip \
+        curl \
+        tidy \
+        xsl \
+        mysqli \
+        bcmath \
+        opcache \
+        pdo_mysql \
+        intl \
+        exif \
+        sockets \
+        pcntl \
+        gettext \
+        bz2 \
+        soap \
+        calendar \
+        shmop \
+         sysvmsg \
+         sysvsem \
+         sysvshm \
+         xml \
+         simplexml \
+         xmlreader \
+          xmlwriter \
+          dom \
+          readline \
+          posix
 
-# 安装字体
-RUN yum -y install \
-    ghostscript-fonts \
-    urw-fonts \
-    xorg-x11-font-utils
+# 安装 PECL 扩展: imagick, redis
+RUN pecl install imagick redis \
+    && docker-php-ext-enable imagick redis
 
-# 安装PHP及其扩展
-RUN yum -y install \
-    php74-php-fpm \
-    php74-php-cli \
-    php74-php-common \
-    php74-php-gd \
-    php74-php-curl \
-    php74-php-mysqlnd \
-    php74-php-mbstring \
-    php74-php-xml \
-    php74-php-json \
-    php74-php-intl \
-    php74-php-pecl-zip \
-    php74-php-pecl-imagick \
-    php74-php-pecl-memcached
+# 配置 ImageMagick 使用 dcraw 处理 RAW 格式
+# 并确保 policy.xml 允许处理相关格式
+RUN sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/rights="none" pattern="EPS"/rights="read|write" pattern="EPS"/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/rights="none" pattern="PS"/rights="read|write" pattern="PS"/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/rights="none" pattern="XPS"/rights="read|write" pattern="XPS"/g' /etc/ImageMagick-6/policy.xml
 
-# 清理yum缓存
-RUN yum clean all
+# 安装 Composer (PHP 依赖管理工具)
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# 配置Nginx日志和目录
-RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
-    ln -sf /dev/stderr /var/log/nginx/error.log && \
-    mkdir -p /run/nginx && \
-    mkdir -p /var/log/supervisor
+# 复制 Nginx 配置模板并清理默认配置
+RUN mkdir -p /etc/nginx/templates && \
+    rm -f /etc/nginx/sites-enabled/default
+COPY ./config/nginx-http.conf /etc/nginx/templates/nginx-http.conf
+COPY ./config/nginx-https.conf /etc/nginx/templates/nginx-https.conf
 
-# 设置时区
-RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    echo "Asia/Shanghai" > /etc/timezone
+# 复制优化的 PHP 和 PHP-FPM 配置
+COPY ./config/custom-php.ini /usr/local/etc/php/conf.d/99-custom.ini
+COPY ./config/php-fpm-www.conf /usr/local/etc/php-fpm.d/www.conf
 
-ADD conf/supervisord.conf /etc/supervisord.conf
+# 复制启动脚本
+COPY ./config/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Copy our nginx config
-RUN rm -Rf /etc/nginx/nginx.conf
-ADD conf/nginx.conf /etc/nginx/nginx.conf
+# 暴露 80 和 443 端口
+EXPOSE 80 443
 
-# nginx site conf
-RUN mkdir -p /etc/nginx/sites-available/ && \
-    mkdir -p /etc/nginx/sites-enabled/ && \
-    mkdir -p /etc/nginx/ssl/ && \
-    mkdir -p /var/www && \
-    rm -Rf /var/www/* && \
-    mkdir -p /var/www/html/ && \
-    chown -R nginx:root /var/www && \
-    chmod -R g=u /var/www
-
-ADD conf/nginx-site.conf /etc/nginx/sites-available/default.conf
-ADD conf/nginx-site-ssl.conf /etc/nginx/sites-available/default-ssl.conf
-ADD conf/private-ssl.conf /etc/nginx/sites-available/private-ssl.conf
-RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/default.conf
-
-# 配置PHP
-RUN ln -s /usr/bin/php74 /usr/bin/php && \
-    ln -s /opt/remi/php74/root/sbin/php-fpm /usr/sbin/php-fpm && \
-    sed -i 's/disable_functions = .*/disable_functions = passthru,system,chroot,chgrp,chown,shell_exec,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /etc/opt/remi/php74/php.ini && \
-    sed -i 's/user = apache/user = nginx/g' /etc/opt/remi/php74/php-fpm.d/www.conf && \
-    sed -i 's/group = apache/group = nginx/g' /etc/opt/remi/php74/php-fpm.d/www.conf && \
-    sed -i 's/listen = 127.0.0.1:9000/listen = \/var\/run\/php-fpm.sock/g' /etc/opt/remi/php74/php-fpm.d/www.conf && \
-    sed -i 's/;listen.owner = nobody/listen.owner = nginx/g' /etc/opt/remi/php74/php-fpm.d/www.conf && \
-    sed -i 's/;listen.group = nobody/listen.group = nginx/g' /etc/opt/remi/php74/php-fpm.d/www.conf && \
-    sed -i 's/;listen.mode = 0660/listen.mode = 0660/g' /etc/opt/remi/php74/php-fpm.d/www.conf
-
-# tweak php-fpm config
-# 配置PHP参数
-RUN echo "cgi.fix_pathinfo=1" > /etc/opt/remi/php74/php.d/custom.ini && \
-    echo "upload_max_filesize = 512M" >> /etc/opt/remi/php74/php.d/custom.ini && \
-    echo "post_max_size = 512M" >> /etc/opt/remi/php74/php.d/custom.ini && \
-    echo "memory_limit = 512M" >> /etc/opt/remi/php74/php.d/custom.ini && \
-    echo "max_execution_time = 3600" >> /etc/opt/remi/php74/php.d/custom.ini && \
-    echo "max_input_time = 3600" >> /etc/opt/remi/php74/php.d/custom.ini && \
-    sed -i \
-        -e "s/;catch_workers_output\s*=\s*yes/catch_workers_output = yes/g" \
-        -e "s/pm.max_children = 5/pm.max_children = 50/g" \
-        -e "s/pm.start_servers = 2/pm.start_servers = 10/g" \
-        -e "s/pm.min_spare_servers = 1/pm.min_spare_servers = 10/g" \
-        -e "s/pm.max_spare_servers = 3/pm.max_spare_servers = 30/g" \
-        -e "s/;pm.max_requests = 500/pm.max_requests = 500/g" \
-        /etc/opt/remi/php74/php-fpm.d/www.conf
-
-VOLUME /var/www/html
-
-COPY entrypoint.sh /
-
-ENTRYPOINT ["/entrypoint.sh"]
-RUN chmod +x /entrypoint.sh
-CMD ["/usr/bin/supervisord","-n","-c","/etc/supervisord.conf"]
+# 使用自定义启动脚本
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
