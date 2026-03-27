@@ -12,7 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get update --fix-missing && \
-    apt-get install -y --no-install-recommends ca-certificates curl gnupg unzip && \
+    apt-get install -y --no-install-recommends ca-certificates curl gnupg && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     nginx \
