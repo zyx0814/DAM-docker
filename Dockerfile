@@ -8,12 +8,25 @@ WORKDIR /var/www/html
 ENV DEBIAN_FRONTEND=noninteractive
 
 
-# 采用分步安装策略，增加重试机制和 --fix-missing
+# 替换为更可靠的镜像源 (强制刷新 sources.list)
+RUN echo "deb http://mirrors.aliyun.com/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb http://mirrors.aliyun.com/debian-security/ bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
+    echo "deb http://mirrors.aliyun.com/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
+    echo "deb http://mirrors.aliyun.com/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list
+
+# 采用极简的基础包安装，先解决 apt 的网络连通性
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    apt-get update --fix-missing && \
-    apt-get install -y --no-install-recommends ca-certificates curl && \
-    apt-get update && \
+    apt-get update -y && \
+    # 先尝试安装最基础的，如果这里失败，说明源有问题
+    apt-get install -y --no-install-recommends ca-certificates curl  || \
+    (echo "Falling back to default mirrors..." && \
+     sed -i 's/mirrors.aliyun.com/deb.debian.org/g' /etc/apt/sources.list && \
+     apt-get update -y && \
+     apt-get install -y --no-install-recommends ca-certificates curl )
+
+# 安装主要依赖
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     nginx \
     libpng-dev \
@@ -76,6 +89,14 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
 # 安装 PECL 扩展: imagick, redis
 RUN pecl install imagick redis \
     && docker-php-ext-enable imagick redis
+
+# 配置 ImageMagick 允许处理相关格式 (RAW, PDF, PSD等)
+RUN sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/rights="none" pattern="EPS"/rights="read|write" pattern="EPS"/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/rights="none" pattern="PS"/rights="read|write" pattern="PS"/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/rights="none" pattern="XPS"/rights="read|write" pattern="XPS"/g' /etc/ImageMagick-6/policy.xml && \
+    # 增加对 RAW 格式的宽限配置
+    sed -i 's/rights="none" pattern="RAW"/rights="read|write" pattern="RAW"/g' /etc/ImageMagick-6/policy.xml || true
 
 # 安装 Composer (PHP 依赖管理工具)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
