@@ -1,4 +1,4 @@
-# 使用 PHP 7.4-FPM 作为基础镜像 (基于 Debian Bullseye 以获得更好的现代格式支持)
+# 使用 PHP 7.4-FPM 作为基础镜像 (基于 Debian Bullseye)
 FROM php:7.4-fpm-bullseye
 
 # 设置工作目录
@@ -7,16 +7,17 @@ WORKDIR /var/www/html
 # 设置环境变量以避免交互式提示
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 安装系统依赖、Nginx、ImageMagick 和 FFmpeg
-# 采用更健壮的分步安装策略以定位并修复错误
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
+
+# 采用分步安装策略，增加重试机制和 --fix-missing
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get update --fix-missing && \
+    apt-get install -y --no-install-recommends ca-certificates curl gnupg unzip && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
     nginx \
     libpng-dev \
-    libjpeg-dev \
+    libjpeg62-turbo-dev \
     libfreetype6-dev \
     libwebp-dev \
     libonig-dev \
@@ -29,6 +30,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libbz2-dev \
     libxml2-dev \
     libreadline-dev \
+    libheif-dev \
+    libopenjp2-7-dev \
     imagemagick \
     ffmpeg \
     libraw-bin \
@@ -73,13 +76,6 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
 # 安装 PECL 扩展: imagick, redis
 RUN pecl install imagick redis \
     && docker-php-ext-enable imagick redis
-
-# 配置 ImageMagick 使用 dcraw 处理 RAW 格式
-# 并确保 policy.xml 允许处理相关格式
-RUN sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/g' /etc/ImageMagick-6/policy.xml && \
-    sed -i 's/rights="none" pattern="EPS"/rights="read|write" pattern="EPS"/g' /etc/ImageMagick-6/policy.xml && \
-    sed -i 's/rights="none" pattern="PS"/rights="read|write" pattern="PS"/g' /etc/ImageMagick-6/policy.xml && \
-    sed -i 's/rights="none" pattern="XPS"/rights="read|write" pattern="XPS"/g' /etc/ImageMagick-6/policy.xml
 
 # 安装 Composer (PHP 依赖管理工具)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
