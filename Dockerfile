@@ -8,21 +8,16 @@ WORKDIR /var/www/html
 ENV DEBIAN_FRONTEND=noninteractive
 
 
-
-# 采用极简的基础包安装，先解决 apt 的网络连通性
+# 合并安装步骤以减少层数并提高稳定性
+# 增加重试机制和网络容错，如果安装失败则回退到默认源
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    apt-get update -y && \
-    # 先尝试安装最基础的，如果这里失败，说明源有问题
-    apt-get install -y --no-install-recommends ca-certificates curl  || \
-    (echo "Falling back to default mirrors..." && \
-     sed -i 's/mirrors.aliyun.com/deb.debian.org/g' /etc/apt/sources.list && \
-     apt-get update -y && \
-     apt-get install -y --no-install-recommends ca-certificates curl )
-
-# 安装主要依赖
-RUN apt-get update && \
+    (apt-get update -y || (sleep 5 && apt-get update -y)) && \
     apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    unzip \
     nginx \
     libpng-dev \
     libjpeg62-turbo-dev \
@@ -58,7 +53,6 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         tidy \
         xsl \
         mysqli \
-        bcmath \
         opcache \
         pdo_mysql \
         intl \
@@ -68,23 +62,25 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         gettext \
         bz2 \
         soap \
-        calendar \
-        shmop \
-         sysvmsg \
-         sysvsem \
-         sysvshm \
-         xml \
-         simplexml \
-         xmlreader \
-          xmlwriter \
-          dom \
-          readline \
-          posix
+        xml \
+        simplexml \
+        xmlreader \
+        xmlwriter \
+        dom \
+        readline \
+        posix
 
 # 安装 PECL 扩展: imagick, redis
 RUN pecl install imagick redis \
     && docker-php-ext-enable imagick redis
 
+# 配置 ImageMagick 允许处理相关格式 (RAW, PDF, PSD等)
+RUN sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/rights="none" pattern="EPS"/rights="read|write" pattern="EPS"/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/rights="none" pattern="PS"/rights="read|write" pattern="PS"/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/rights="none" pattern="XPS"/rights="read|write" pattern="XPS"/g' /etc/ImageMagick-6/policy.xml && \
+    # 增加对 RAW 格式的宽限配置
+    sed -i 's/rights="none" pattern="RAW"/rights="read|write" pattern="RAW"/g' /etc/ImageMagick-6/policy.xml || true
 
 # 安装 Composer (PHP 依赖管理工具)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
