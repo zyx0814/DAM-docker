@@ -6,6 +6,11 @@ WORKDIR /var/www/html
 
 # 设置环境变量以避免交互式提示
 ENV DEBIAN_FRONTEND=noninteractive
+
+
+# 替换为更通用的镜像源 (支持多架构 amd64, arm64, arm/v6, arm/v7 等)
+# 针对国内用户，可以使用阿里云加速，但保留原始结构以支持多架构
+# 使用 sed 在现有源后追加 contrib non-free
 RUN sed -i 's/main/main contrib non-free/g' /etc/apt/sources.list && \
     (sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list || true) && \
     (sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list || true)
@@ -35,6 +40,7 @@ RUN apt-get clean && \
     libbz2-dev \
     libxml2-dev \
     libreadline-dev \
+    libedit-dev \
     libheif-dev \
     libopenjp2-7-dev \
     imagemagick \
@@ -48,7 +54,7 @@ RUN apt-get clean && \
      apt-get install -y --no-install-recommends \
      ca-certificates curl gnupg unzip nginx libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
      libwebp-dev libonig-dev libzip-dev libcurl4-openssl-dev libtidy-dev libxslt1-dev \
-     libmagickwand-dev libicu-dev libbz2-dev libxml2-dev libreadline-dev libheif-dev \
+     libmagickwand-dev libicu-dev libbz2-dev libxml2-dev libreadline-dev libedit-dev libheif-dev \
      libopenjp2-7-dev imagemagick ffmpeg libraw-bin dcraw ghostscript) \
     && rm -rf /var/lib/apt/lists/*
 
@@ -56,14 +62,19 @@ RUN apt-get clean && \
 # 包括要求的扩展及常用的基础扩展
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j$(nproc) \
+        dom \
+        xml \
+        simplexml \
+        xmlreader \
+        xmlwriter \
+        xsl \
         mbstring \
         gd \
         zip \
         curl \
-        dom \
         tidy \
-        xsl \
         mysqli \
+        bcmath \
         opcache \
         pdo_mysql \
         intl \
@@ -73,24 +84,22 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         gettext \
         bz2 \
         soap \
+        calendar \
+        shmop \
+        sysvmsg \
+        sysvsem \
+        sysvshm \
         readline \
-        posix \
-        simplexml \
-        xmlreader \
-        xmlwriter
-
+        posix
 
 # 安装 PECL 扩展: imagick, redis
 RUN pecl install imagick redis \
     && docker-php-ext-enable imagick redis
 
-# 配置 ImageMagick 允许处理相关格式 (RAW, PDF, PSD等)
-RUN sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/g' /etc/ImageMagick-6/policy.xml && \
-    sed -i 's/rights="none" pattern="EPS"/rights="read|write" pattern="EPS"/g' /etc/ImageMagick-6/policy.xml && \
-    sed -i 's/rights="none" pattern="PS"/rights="read|write" pattern="PS"/g' /etc/ImageMagick-6/policy.xml && \
-    sed -i 's/rights="none" pattern="XPS"/rights="read|write" pattern="XPS"/g' /etc/ImageMagick-6/policy.xml && \
-    # 增加对 RAW 格式的宽限配置
-    sed -i 's/rights="none" pattern="RAW"/rights="read|write" pattern="RAW"/g' /etc/ImageMagick-6/policy.xml || true
+# 配置 ImageMagick 允许处理相关格式 (RAW, PDF, PSD, HEIC等)
+RUN for pattern in PDF EPS XPS PS PS2 PS3 PLT DNG CR2 PSD RAW; do \
+        sed -i "s/rights=\"none\" pattern=\"$pattern\"/rights=\"read|write\" pattern=\"$pattern\"/g" /etc/ImageMagick-6/policy.xml; \
+    done || true
 
 # 安装 Composer (PHP 依赖管理工具)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
