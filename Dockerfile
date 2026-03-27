@@ -8,10 +8,17 @@ WORKDIR /var/www/html
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 安装系统依赖、Nginx、ImageMagick 和 FFmpeg
+# 采用更健壮的分步安装策略以定位并修复错误
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    unzip \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
     nginx \
     libpng-dev \
-    libjpeg62-turbo-dev \
+    libjpeg-dev \
     libfreetype6-dev \
     libwebp-dev \
     libonig-dev \
@@ -24,15 +31,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libbz2-dev \
     libxml2-dev \
     libreadline-dev \
-    libheif-dev \
-    libmagickcore-6.q16-6-extra \
     imagemagick \
     ffmpeg \
     libraw-bin \
     dcraw \
     ghostscript \
-    unzip \
-    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # 配置并安装 PHP 扩展
