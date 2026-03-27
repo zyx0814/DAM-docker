@@ -39,7 +39,15 @@ RUN apt-get clean && \
     ffmpeg \
     libraw-bin \
     dcraw \
-    ghostscript \
+    ghostscript || \
+    (echo "Installation failed, falling back to default mirrors..." && \
+     sed -i 's/mirrors.aliyun.com/deb.debian.org/g' /etc/apt/sources.list && \
+     apt-get update -y && \
+     apt-get install -y --no-install-recommends \
+     ca-certificates curl gnupg unzip nginx libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+     libwebp-dev libonig-dev libzip-dev libcurl4-openssl-dev libtidy-dev libxslt1-dev \
+     libmagickwand-dev libicu-dev libbz2-dev libxml2-dev libreadline-dev libheif-dev \
+     libopenjp2-7-dev imagemagick ffmpeg libraw-bin dcraw ghostscript) \
     && rm -rf /var/lib/apt/lists/*
 
 # 配置并安装 PHP 扩展
@@ -50,6 +58,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         gd \
         zip \
         curl \
+        dom \
         tidy \
         xsl \
         mysqli \
@@ -62,13 +71,12 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         gettext \
         bz2 \
         soap \
-        xml \
+        readline \
+        posix \
         simplexml \
         xmlreader \
-        xmlwriter \
-        dom \
-        readline \
-        posix
+        xmlwriter
+
 
 # 安装 PECL 扩展: imagick, redis
 RUN pecl install imagick redis \
