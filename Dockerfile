@@ -97,10 +97,12 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # 复制 Nginx 配置模板并清理默认配置
 RUN mkdir -p /etc/nginx/templates && \
     rm -f /etc/nginx/sites-enabled/default
+COPY ./config/nginx.conf /etc/nginx/nginx.conf
 COPY ./config/nginx-http.conf /etc/nginx/templates/nginx-http.conf
 COPY ./config/nginx-https.conf /etc/nginx/templates/nginx-https.conf
 
 # 复制优化的 PHP 和 PHP-FPM 配置
+
 COPY ./config/custom-php.ini /usr/local/etc/php/conf.d/99-custom.ini
 COPY ./config/php-fpm-www.conf /usr/local/etc/php-fpm.d/www.conf
 
