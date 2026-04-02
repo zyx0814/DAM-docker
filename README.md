@@ -11,6 +11,7 @@
 - **多平台支持**: 兼容 `linux/amd64` 和 `linux/arm64` (Apple Silicon)。
 - **动态 HTTPS**: 根据挂载目录是否存在证书文件，自动切换 HTTP 或 HTTPS 配置。
 - **性能优化**: 预配置了优化的 PHP-FPM 进程管理和 PHP Opcache。
+- **定时任务 (Cron)**: 内置 `cron` 服务，支持执行定时脚本。预设了一个通过 `curl` 访问外部 URL 的任务。
 - **无日志模式**: 容器内默认不生成日志文件，防止存储空间被占满。
 
 ## 快速开始
@@ -33,6 +34,26 @@ docker-compose up -d --build
 
 如果 `ssl` 目录下存在证书，容器启动时会自动切换到 HTTPS 配置并强制重定向 80 端口。
 
+### 3. 配置定时任务 (Cron)
+
+本环境内置了 `cron` 服务，可以执行定时任务。默认配置了一个每 5 分钟通过 `curl` 访问外部 URL 的任务。
+
+1.  **创建 URL 文件**: 在您的项目本地（例如与 `docker-compose.yml` 同级）创建一个名为 `cron_url.txt` 的文件。
+2.  **填写 URL**: 在 `cron_url.txt` 文件中输入您希望定时访问的完整 URL，例如 `https://example.com/api/cron`。
+3.  **挂载文件**: 在 `docker-compose.yml` 中，将该文件挂载到容器的 `/var/www/html/cron_url.txt`。修改 `services.php.volumes` 部分如下：
+
+    ```yaml
+    volumes:
+      - ./html:/var/www/html
+      - ./ssl:/etc/nginx/ssl
+      - ./cron_url.txt:/var/www/html/cron_url.txt # 添加这一行
+    ```
+
+4.  **启动服务**: 运行 `docker-compose up -d`。容器启动后，定时任务将自动运行。
+
+- **日志**: 定时任务的执行日志会记录在容器内的 `/var/log/cron.log` 文件中。
+- **频率**: 默认执行频率为每 5 分钟。如需修改，请编辑 `Dockerfile` 中 `cron-task` 的 cron 表达式并重新构建镜像。
+
 ## 目录结构
 
 - `Dockerfile`: 容器构建定义。
@@ -43,28 +64,7 @@ docker-compose up -d --build
   - `nginx-https.conf`: HTTPS 模式下的 Nginx 配置模板。
   - `custom-php.ini`: 优化的 PHP 配置文件。
   - `php-fpm-www.conf`: 优化的 PHP-FPM 进程池配置。
-- `index.php`: 测试页面，显示 `phpinfo()`。
 
-## 媒体处理示例
-
-### 处理 PSD/HEIC 转换为 JPG (PHP)
-```php
-// 处理 PSD
-$im = new Imagick('input.psd[0]');
-$im->setImageFormat('jpg');
-$im->writeImage('output_psd.jpg');
-
-// 处理 HEIC
-$im = new Imagick('input.heic');
-$im->setImageFormat('jpg');
-$im->writeImage('output_heic.jpg');
-```
-
-### 处理视频缩略图 (FFmpeg)
-```bash
-# 在容器内运行
-ffmpeg -i video.mp4 -ss 00:00:01 -vframes 1 thumb.jpg
-```
 
 ## PHP CLI 支持
 容器预装了 **Composer** 和必备的 CLI 扩展（readline, posix, pcntl）。

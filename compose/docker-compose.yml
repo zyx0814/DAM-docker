@@ -20,6 +20,14 @@ services:
       - mysql_password
       - mysql_user
 
+  redis:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - 6379:6379
+    environment:
+      - TZ=Asia/Shanghai
+
   app:
     image: oaooa/dam
     ports:
@@ -28,6 +36,7 @@ services:
       - db
     volumes:
       - "./site:/var/www/html"
+      - "./ssl:/etc/nginx/ssl"
     environment:
       - "MYSQL_SERVER=db"
       - "MYSQL_DATABASE_FILE=/run/secrets/mysql_db"
@@ -38,8 +47,6 @@ services:
       - mysql_db
       - mysql_password
       - mysql_user
-
- 
 
 secrets:
   mysql_db:
