@@ -8,17 +8,13 @@ WORKDIR /var/www/html
 ENV DEBIAN_FRONTEND=noninteractive
 
 
-# 替换为更通用的镜像源 (支持多架构 amd64, arm64, arm/v6, arm/v7 等)
-# 针对国内用户，可以使用阿里云加速，但保留原始结构以支持多架构
-# 使用 sed 在现有源后追加 contrib non-free
-# 注意: Bullseye 为 oldoldstable, 主仓库已归档; 安全源仍由 security.debian.org 提供 (LTS 至 2026-08)
-RUN sed -i 's/main/main contrib non-free/g' /etc/apt/sources.list && \
-    (sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list || true) && \
-    (sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list || true) && \
-    (sed -i 's|mirrors.aliyun.com/debian-security|security.debian.org/debian-security|g' /etc/apt/sources.list || true)
+# Bullseye 已 EOL (2026-08-31 LTS 结束), 使用 archive.debian.org 归档源
+# 归档源已合并所有安全更新, 无需单独的 security 源
+# 禁用 Check-Valid-Until, 因归档源 Release 文件可能已过期
+RUN echo "deb http://archive.debian.org/debian bullseye main contrib non-free" > /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
 
 # 合并安装步骤以减少层数并提高稳定性
-# 增加重试机制和网络容错，如果安装失败则回退到默认源
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     (apt-get update -y || (sleep 5 && apt-get update -y)) && \
@@ -54,15 +50,7 @@ RUN apt-get clean && \
     libraw-bin \
     dcraw \
     ghostscript \
-    fonts-noto-cjk || \
-    (echo "Installation failed, falling back to default mirrors..." && \
-     sed -i 's/mirrors.aliyun.com/archive.debian.org/g' /etc/apt/sources.list && \
-     apt-get update -y && \
-     apt-get install -y --no-install-recommends \
-     ca-certificates locales tzdata curl gnupg unzip nginx cron libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
-     libwebp-dev libonig-dev libzip-dev libcurl4-openssl-dev libtidy-dev libxslt1-dev \
-     libmagickwand-dev libicu-dev libbz2-dev libxml2-dev libreadline-dev libedit-dev libheif-dev \
-     libopenjp2-7-dev imagemagick ffmpeg libraw-bin dcraw ghostscript fonts-noto-cjk) \
+    fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
 # 生成 locale 并设置环境变量
