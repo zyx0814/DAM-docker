@@ -38,6 +38,7 @@ services:
       - "./site:/var/www/html"
       - "./ssl:/etc/nginx/ssl"
     environment:
+      - "TZ=Asia/Shanghai"
       - "MYSQL_SERVER=db"
       - "MYSQL_DATABASE_FILE=/run/secrets/mysql_db"
       - "MYSQL_USER_FILE=/run/secrets/mysql_user"

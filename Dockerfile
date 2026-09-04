@@ -22,6 +22,8 @@ RUN apt-get clean && \
     (apt-get update -y || (sleep 5 && apt-get update -y)) && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
+    locales \
+    tzdata \
     curl \
     gnupg \
     unzip \
@@ -49,16 +51,25 @@ RUN apt-get clean && \
     ffmpeg \
     libraw-bin \
     dcraw \
-    ghostscript || \
+    ghostscript \
+    fonts-noto-cjk || \
     (echo "Installation failed, falling back to default mirrors..." && \
      sed -i 's/mirrors.aliyun.com/deb.debian.org/g' /etc/apt/sources.list && \
      apt-get update -y && \
      apt-get install -y --no-install-recommends \
-     ca-certificates curl gnupg unzip nginx cron libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+     ca-certificates locales tzdata curl gnupg unzip nginx cron libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
      libwebp-dev libonig-dev libzip-dev libcurl4-openssl-dev libtidy-dev libxslt1-dev \
      libmagickwand-dev libicu-dev libbz2-dev libxml2-dev libreadline-dev libedit-dev libheif-dev \
-     libopenjp2-7-dev imagemagick ffmpeg libraw-bin dcraw ghostscript) \
+     libopenjp2-7-dev imagemagick ffmpeg libraw-bin dcraw ghostscript fonts-noto-cjk) \
     && rm -rf /var/lib/apt/lists/*
+
+# 生成中文 locale 并设置环境变量 (支持中文文件名、系统消息等)
+RUN sed -i 's/# zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen && \
+    locale-gen zh_CN.UTF-8 && \
+    update-locale LANG=zh_CN.UTF-8
+ENV LANG=zh_CN.UTF-8
+ENV LC_ALL=zh_CN.UTF-8
+ENV TZ=Asia/Shanghai
 
 # 配置并安装 PHP 扩展
 # 包括要求的扩展及常用的基础扩展
