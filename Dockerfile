@@ -1,6 +1,6 @@
-# 使用 PHP 8.3-FPM 作为基础镜像 (基于 Debian Bookworm)
-# PHP 8.3.36+ 已包含 CVE-2026-109618 / CVE-2026-109619 (PHP2Shell RCE) 官方修复
-FROM php:8.3-fpm-bookworm
+# 使用 PHP 7.4-FPM 作为基础镜像 (基于 Debian Bullseye)
+# 已应用 CVE-2026-109618 / CVE-2026-109619 (PHP2Shell RCE) 官方回溯补丁
+FROM php:7.4-fpm-bullseye
 
 # 设置工作目录
 WORKDIR /var/www/html
@@ -9,13 +9,22 @@ WORKDIR /var/www/html
 ENV DEBIAN_FRONTEND=noninteractive
 
 
-# Debian Bookworm 仍在官方支持期内, 基础镜像自带可用的官方源与安全更新源
+# Bullseye 已 EOL (2026-08-31 LTS 结束), 使用 archive.debian.org 归档源
+# 归档源已合并所有安全更新, 无需单独的 security 源
+# 禁用 Check-Valid-Until, 因归档源 Release 文件可能已过期
+RUN echo "deb http://archive.debian.org/debian bullseye main contrib non-free" > /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
 
 # 合并安装步骤以减少层数并提高稳定性
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     (apt-get update -y || (sleep 5 && apt-get update -y)) && \
     apt-get install -y --no-install-recommends \
+    build-essential \
+    autoconf \
+    bison \
+    re2c \
+    pkg-config \
     ca-certificates \
     locales \
     tzdata \
@@ -40,6 +49,11 @@ RUN apt-get clean && \
     libxml2-dev \
     libreadline-dev \
     libedit-dev \
+    libssl-dev \
+    zlib1g-dev \
+    libsqlite3-dev \
+    libsodium-dev \
+    libargon2-dev \
     libheif-dev \
     libopenjp2-7-dev \
     imagemagick \
@@ -49,6 +63,20 @@ RUN apt-get clean && \
     ghostscript \
     fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
+
+# 应用 PHP 7.4 CVE-2026-109618 / CVE-2026-109619 (PHP2Shell) 回溯补丁
+# PHP 7.4 已 EOL, 官方 Docker 镜像不再获得安全更新;
+# PHP 安全团队为 7.4 提供了最小源码回溯分支, 此处从该分支重编译 PHP 以修复 RCE 漏洞
+# 使用与原镜像完全相同的编译选项 (php-config --configure-options), 保证 ABI 兼容
+RUN curl -fsSL "https://github.com/php/php-src/archive/refs/heads/PHP-7.4-CVE-2026-109618-109619.tar.gz" -o /tmp/php-src.tar.gz \
+    && tar -xzf /tmp/php-src.tar.gz -C /tmp \
+    && cd /tmp/php-src-PHP-7.4-CVE-2026-109618-109619 \
+    && ./buildconf --force \
+    && ./configure $(php-config --configure-options) \
+    && make -j$(nproc) \
+    && make install \
+    && cd / \
+    && rm -rf /tmp/php-src-PHP-7.4-CVE-2026-109618-109619 /tmp/php-src.tar.gz
 
 # 生成 locale 并设置环境变量
 RUN sed -i 's/# lv_LV.UTF-8 UTF-8/lv_LV.UTF-8 UTF-8/' /etc/locale.gen && \
